@@ -2,9 +2,7 @@
 
 local partitions = require("./partitions")
 
-local MultiplayerSoldier_ = {}
-MultiplayerSoldier_.__index = MultiplayerSoldier_
-local MultiplayerSoldier = MultiplayerSoldier_
+local MultiplayerSoldier = {}
 
 local SoldierBlueprintGuids = {
   partitionGuid = Guid("9697F666-AFF6-4035-AC81-148AC0E840F3"),

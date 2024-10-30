@@ -2,14 +2,12 @@
 
 local partitions = require("./partitions")
 
+local M1A2Abrams = {}
+
 local M1A2VehicleBlueprint = {
 	partitionGuid = "B069BA89-EECF-11DD-8117-9421284A74E5",
 	instanceGuid = "B06A08AB-EECF-11DD-8117-9421284A74E5",
 }
-
-local M1A2Abrams_ = {}
-M1A2Abrams_.__index = M1A2Abrams_
-local M1A2Abrams = M1A2Abrams_
 
 local m_SmokeVerticalSpeed = 6
 local m_SmokeCenterSpeedSideways = 0
@@ -21,7 +19,7 @@ local m_SmokeInnerSpeedForwards = 23
 local m_SmokeMiddleSpeedForwards = 15
 local m_SmokeOuterSpeedForwards = 9
 
-function M1A2Abrams:on_load(p_VehicleBlueprint: VehicleBlueprint)
+function M1A2Abrams:OnLoad(p_VehicleBlueprint: VehicleBlueprint)
 	print("Abrams Vehicle Loaded!!!")
   local s_VehicleEntity = p_VehicleBlueprint.object :: VehicleEntityData
   local s_VehicleComponentData = s_VehicleEntity.components[1] :: VehicleComponentData
@@ -49,6 +47,37 @@ function M1A2Abrams:on_load(p_VehicleBlueprint: VehicleBlueprint)
   s_VehicleEntity.clientRuntimeTransformationCount += 6
 end
 
+function M1A2Abrams:TweakSmoke(p_WeaponComponentData: WeaponComponentData, p_InitialSpeed: Vec3)
+	-- Make copies of WeaponFiring and PrimaryFire and attach those copies to the WeaponComponent
+	local s_CustomWeaponFiringData = p_WeaponComponentData.weaponFiring:clone()
+	local s_CustomFiringFunctionData = s_CustomWeaponFiringData.primaryFire:clone()
+
+	local s_Shot = s_CustomFiringFunctionData.shot
+
+	s_Shot.initialSpeed = p_InitialSpeed
+	s_Shot.initialDirection = Vec3.fromTable({x = 0, y = 0, z = 1})
+	s_Shot.initialPosition = Vec3.fromTable({x = 0, y = 0, z = 0})
+	s_Shot.forceSpawnToCamera = true
+
+	local s_Projectile  = s_Shot.projectileData :: BulletEntityData
+
+	-- make the smoke appear ONLY when projectile explodes
+	if s_Shot.muzzleExplosion then
+		s_Projectile.explosion = s_Shot.muzzleExplosion:clone()
+		s_Projectile.dudExplosion = s_Shot.muzzleExplosion:clone()
+		-- NOT when the projectile appears (muzzle explosion)
+		s_Shot.muzzleExplosion = nil :: any
+	end
+
+	-- airburst the smoke
+	s_Projectile.timeToLive = 1.0
+	s_Projectile.detonateOnTimeout = true 
+
+	-- attach the modified copies to the weapon component
+	s_CustomWeaponFiringData.primaryFire = s_CustomFiringFunctionData
+	p_WeaponComponentData.weaponFiring = s_CustomWeaponFiringData
+end
+
 function M1A2Abrams:vSmoke(p_VehicleSmokeUnlockComponent: UnlockComponentData)
   local s_SmokeWeaponComponent = p_VehicleSmokeUnlockComponent.components[2] :: WeaponComponentData
 
@@ -63,44 +92,13 @@ function M1A2Abrams:vSmoke(p_VehicleSmokeUnlockComponent: UnlockComponentData)
   -- remove the smoke in middle
   p_VehicleSmokeUnlockComponent.components:remove(2)
 
-	local function tweakSmoke(p_WeaponComponentData: WeaponComponentData, p_InitialSpeed: Vec3)
-		-- Make copies of WeaponFiring and PrimaryFire and attach those copies to the WeaponComponent
-		local s_CustomWeaponFiringData = p_WeaponComponentData.weaponFiring:clone()
-		local s_CustomFiringFunctionData = s_CustomWeaponFiringData.primaryFire:clone()
-
-		local s_Shot = s_CustomFiringFunctionData.shot
-
-		s_Shot.initialSpeed = p_InitialSpeed
-		s_Shot.initialDirection = Vec3.fromTable({x = 0, y = 0, z = 1})
-		s_Shot.initialPosition = Vec3.fromTable({x = 0, y = 0, z = 0})
-		s_Shot.forceSpawnToCamera = true
-
-		local s_Projectile  = s_Shot.projectileData :: BulletEntityData
-
-		-- make the smoke appear ONLY when projectile explodes
-		if s_Shot.muzzleExplosion then
-			s_Projectile.explosion = s_Shot.muzzleExplosion:clone()
-			s_Projectile.dudExplosion = s_Shot.muzzleExplosion:clone()
-			-- NOT when the projectile appears (muzzle explosion)
-			s_Shot.muzzleExplosion = nil :: any
-		end
-
-		-- airburst the smoke
-		s_Projectile.timeToLive = 1.0
-		s_Projectile.detonateOnTimeout = true 
-
-		-- attach the modified copies to the weapon component
-		s_CustomWeaponFiringData.primaryFire = s_CustomFiringFunctionData
-		p_WeaponComponentData.weaponFiring = s_CustomWeaponFiringData
-	end
-
-	tweakSmoke(s_CenterSmoke, Vec3.fromTable({x = m_SmokeCenterSpeedSideways, y = m_SmokeVerticalSpeed, z = m_SmokeCenterSpeedForwards}))
-	tweakSmoke(s_LeftInnerSmoke, Vec3.fromTable({x = -m_SmokeInnerSpeedSideways, y = m_SmokeVerticalSpeed,z =  m_SmokeInnerSpeedForwards}))
-	tweakSmoke(s_RightInnerSmoke, Vec3.fromTable({x = m_SmokeInnerSpeedSideways, y = m_SmokeVerticalSpeed, z = m_SmokeInnerSpeedForwards}))
-	tweakSmoke(s_LeftMiddleSmoke, Vec3.fromTable({x = -m_SmokeMiddleSpeedSideways, y = m_SmokeVerticalSpeed, z = m_SmokeMiddleSpeedForwards}))
-	tweakSmoke(s_RightMiddleSmoke, Vec3.fromTable({x = m_SmokeMiddleSpeedSideways,y =  m_SmokeVerticalSpeed, z = m_SmokeMiddleSpeedForwards}))
-	tweakSmoke(s_LeftOuterSmoke, Vec3.fromTable({x = -m_SmokeOuterSpeedSideways, y = m_SmokeVerticalSpeed, z = m_SmokeOuterSpeedForwards}))
-	tweakSmoke(s_RightOuterSmoke, Vec3.fromTable({x = m_SmokeOuterSpeedSideways, y = m_SmokeVerticalSpeed, z = m_SmokeOuterSpeedForwards}))
+	M1A2Abrams:TweakSmoke(s_CenterSmoke, Vec3.fromTable({x = m_SmokeCenterSpeedSideways, y = m_SmokeVerticalSpeed, z = m_SmokeCenterSpeedForwards}))
+	M1A2Abrams:TweakSmoke(s_LeftInnerSmoke, Vec3.fromTable({x = -m_SmokeInnerSpeedSideways, y = m_SmokeVerticalSpeed,z =  m_SmokeInnerSpeedForwards}))
+	M1A2Abrams:TweakSmoke(s_RightInnerSmoke, Vec3.fromTable({x = m_SmokeInnerSpeedSideways, y = m_SmokeVerticalSpeed, z = m_SmokeInnerSpeedForwards}))
+	M1A2Abrams:TweakSmoke(s_LeftMiddleSmoke, Vec3.fromTable({x = -m_SmokeMiddleSpeedSideways, y = m_SmokeVerticalSpeed, z = m_SmokeMiddleSpeedForwards}))
+	M1A2Abrams:TweakSmoke(s_RightMiddleSmoke, Vec3.fromTable({x = m_SmokeMiddleSpeedSideways,y =  m_SmokeVerticalSpeed, z = m_SmokeMiddleSpeedForwards}))
+	M1A2Abrams:TweakSmoke(s_LeftOuterSmoke, Vec3.fromTable({x = -m_SmokeOuterSpeedSideways, y = m_SmokeVerticalSpeed, z = m_SmokeOuterSpeedForwards}))
+	M1A2Abrams:TweakSmoke(s_RightOuterSmoke, Vec3.fromTable({x = m_SmokeOuterSpeedSideways, y = m_SmokeVerticalSpeed, z = m_SmokeOuterSpeedForwards}))
 
 	p_VehicleSmokeUnlockComponent.components:push(s_CenterSmoke)
 	p_VehicleSmokeUnlockComponent.components:push(s_LeftInnerSmoke)
@@ -110,13 +108,10 @@ function M1A2Abrams:vSmoke(p_VehicleSmokeUnlockComponent: UnlockComponentData)
 	p_VehicleSmokeUnlockComponent.components:push(s_LeftOuterSmoke)
 	p_VehicleSmokeUnlockComponent.components:push(s_RightOuterSmoke)
 end
-  
 
-partitions.onAllInstancesLoaded(M1A2Abrams, M1A2Abrams.on_load, {
+partitions.onAllInstancesLoaded(M1A2Abrams, M1A2Abrams.OnLoad, {
 	partition = Guid(M1A2VehicleBlueprint.partitionGuid),
 	instance = Guid(M1A2VehicleBlueprint.instanceGuid),
 })
-
-
 
 return nil
