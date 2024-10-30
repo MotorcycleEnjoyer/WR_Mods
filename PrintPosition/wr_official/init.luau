@@ -1,6 +1,6 @@
 --!strict
 
-require("Player/PlayerCommon")
+require("Commands/PrintPosition")
 
 print("******************************************************")
 print("****************** Hello World! ********************")
