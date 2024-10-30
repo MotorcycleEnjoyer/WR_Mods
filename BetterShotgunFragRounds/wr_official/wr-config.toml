@@ -1,0 +1,10 @@
+[script]
+name = "wr_official"
+version = "0.1.0"
+author_ids = ["MotorcycleEnjoyer"]
+description = "Better Shotun Frag Rounds"
+repository = "https://github.com/MotorcycleEnjoyer/WR_Mods.git"
+tags = ["official", "wr"]
+
+[dependencies]
+partitions = "0.1.0"
